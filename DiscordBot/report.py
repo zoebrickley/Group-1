@@ -21,6 +21,7 @@ class Report:
     START_KEYWORD = "report"
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
+    MOD_KEYWORD = "mod"
 
     def __init__(self, client):
         self.state = State.REPORT_START
@@ -28,6 +29,12 @@ class Report:
         self.message = None
         self.data = {}
         self.sextortion = False
+
+    def getData(self):
+        return self.data
+
+    def getMessage(self):
+        return self.message
     
     async def handle_message(self, message):
         '''
@@ -242,8 +249,37 @@ class Report:
 
     def report_complete(self):
         return self.state == State.REPORT_COMPLETE
-    
 
+
+class ModInterface():
+
+    def __init__(self, client):
+        self.state = State.REPORT_START
+        # self.client = client
+        self.message = None
+        self.data = {}
+        self.sextortion = False 
+
+    async def handle_message(self, message):
+        '''
+        This function makes up the meat of the moderator-side reporting flow. It defines how we transition between states and what 
+        prompts to offer at each of those states. You're welcome to change anything you want; this skeleton is just here to
+        get you started and give you a model for working with Discord. 
+        '''
+
+        if message.content == Report.CANCEL_KEYWORD:
+            self.state = State.REPORT_COMPLETE
+            return ["Report cancelled."]
+        
+        if self.state == State.REPORT_START:
+            reply =  "Welcome, moderator. "
+            reply += "Say `help` at any time for more information.\n\n"
+            reply += "Please select the report you want to process\n"
+            self.state = State.AWAITING_MESSAGE
+            return [reply]
+
+        if self.state == State.AWAITING_MESSAGE:
+            pass
 
     
 
