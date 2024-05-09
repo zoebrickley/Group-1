@@ -6,7 +6,7 @@ import json
 import logging
 import re
 import requests
-from report import Report
+from report import Report, ModInterface
 import pdb
 
 # Set up logging to the console
@@ -34,6 +34,10 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
+        self.mod_desk = {}
+        self.submitted = {}
+        self.user_flow = False
+        self.mod_flow = False
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -81,22 +85,47 @@ class ModBot(discord.Client):
         author_id = message.author.id
         responses = []
 
+        if message.content.startswith(Report.MOD_KEYWORD) and not self.user_flow:
+            self.mod_flow = True 
+
         # Only respond to messages if they're part of a reporting flow
-        if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):
+        if not self.mod_flow:
+
+            if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):
+                return
+
+            # If we don't currently have an active report for this user, add one
+            if author_id not in self.reports:
+                self.reports[author_id] = Report(self)
+                self.user_flow = True
+
+        if self.user_flow:
+        
+            # Let the report class handle this message; forward all the messages it returns to uss
+            responses = await self.reports[author_id].handle_message(message)
+            for r in responses:
+                await message.channel.send(r)
+
+            # If the report is complete or cancelled, remove it from our map
+            if self.reports[author_id].report_complete():
+                if author_id not in self.submitted.keys():
+                    self.submitted[author_id] = [self.reports[author_id]]
+                else:
+                    self.submitted[author_id].append(self.reports[author_id])
+                self.user_flow = False
+                self.reports.pop(author_id)
+
+        elif self.mod_flow:
+
+            if author_id not in self.mod_desk:
+                self.mod_desk[author_id] = ModInterface(self)
+
+            # Let the report class handle this message; forward all the messages it returns to uss
+            responses = await self.mod_desk[author_id].handle_message(message)
+            for r in responses:
+                await message.channel.send(r)
             return
 
-        # If we don't currently have an active report for this user, add one
-        if author_id not in self.reports:
-            self.reports[author_id] = Report(self)
-
-        # Let the report class handle this message; forward all the messages it returns to uss
-        responses = await self.reports[author_id].handle_message(message)
-        for r in responses:
-            await message.channel.send(r)
-
-        # If the report is complete or cancelled, remove it from our map
-        if self.reports[author_id].report_complete():
-            self.reports.pop(author_id)
 
     async def handle_channel_message(self, message):
         # Only handle messages sent in the "group-#" channel
