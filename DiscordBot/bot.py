@@ -108,9 +108,10 @@ class ModBot(discord.Client):
             # If the report is complete or cancelled, remove it from our map
             if self.reports[author_id].report_complete():
                 if author_id not in self.submitted.keys():
-                    self.submitted[author_id] = [self.reports[author_id]]
+                    self.submitted[author_id] = {1: self.reports[author_id]}
                 else:
-                    self.submitted[author_id].append(self.reports[author_id])
+                    max_report_id = max(self.submitted[author_id].keys())
+                    self.submitted[author_id][max_report_id + 1] = self.reports[author_id]
                 self.user_flow = False
                 self.reports.pop(author_id)
 

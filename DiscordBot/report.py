@@ -111,7 +111,7 @@ class Report:
                 if msg == "solicitation":
                     self.sextortion = True
             elif self.data["abuse type"] == "offensive content" and \
-            msg in ["hate speech", "hatespeech", "copyright", "sexually explicit content", "sexual content"]:
+            msg in ["hate speech", "hatespeech", "copyright", "violence", "sexually explicit content", "sexual content"]:
                 self.data["abuse subtype"] = msg
                 if msg in ["sexually explicit content", "sexual content"]:
                     self.sextortion = True
@@ -148,7 +148,7 @@ class Report:
             else:
                 self.state = State.REPORT_COMPLETE 
                 return ["Thank you for reporting. Our moderation team will investigate the issue " + \
-                        "and determine the appropriate action"]
+                        "and determine the appropriate action."]
 
         if self.state == State.STATE4:
             msg = message.content.lower().strip()
@@ -298,12 +298,11 @@ class ModInterface():
         if self.state == State.STATE1:
             for i in range(len(self.client.submitted.keys())):
                 if str(i + 1) in msg:
-                    self.report_idx = i
                     self.mod_user = list(self.client.submitted.keys())[i]
                     s = f"You have selected User {str(i + 1)}.\n\n"
                     s += "Please select one of the following reports from this user:\n"
-                    for i in range(len(self.client.submitted[self.mod_user])):
-                        s += f"- Report {str(i + 1)}\n"
+                    for j in self.client.submitted[self.mod_user]:
+                        s += f"- Report {str(j)}\n"
                     self.state = State.STATE2
                     return [s]    
             
@@ -311,9 +310,10 @@ class ModInterface():
             return [s]
         
         if self.state == State.STATE2:
-            for i in range(len(self.client.submitted[self.mod_user])):
-                if str(i + 1) in msg:
-                    s = f"You have selected Report {str(i + 1)}.\n\n"
+            for i in self.client.submitted[self.mod_user]:
+                if str(i) in msg:
+                    self.report_idx = i
+                    s = f"You have selected Report {str(i)}.\n\n"
                     s += "Here is the relevant information from the report:\n"
                     for data in self.client.submitted[self.mod_user][i].data:
                         s += f"{str(data)} = {str(self.client.submitted[self.mod_user][i].data[data])}\n"
