@@ -255,10 +255,11 @@ class ModInterface():
 
     def __init__(self, client):
         self.state = State.REPORT_START
-        # self.client = client
+        self.client = client
         self.message = None
         self.data = {}
-        self.sextortion = False 
+        self.sextortion = False
+        self.reports = {} 
 
     async def handle_message(self, message):
         '''
@@ -274,12 +275,79 @@ class ModInterface():
         if self.state == State.REPORT_START:
             reply =  "Welcome, moderator. "
             reply += "Say `help` at any time for more information.\n\n"
-            reply += "Please select the report you want to process\n"
+            reply += "Would you like to process a report?\n"
             self.state = State.AWAITING_MESSAGE
             return [reply]
 
         if self.state == State.AWAITING_MESSAGE:
-            pass
-
-    
+            msg = message.content.lower().strip()
+            if msg.startswith("yes") or msg == "y":
+                s = "Please select a user who submitted a report from the following:\n"
+                for i in range(len(self.client.submitted.keys())):
+                    s += f"- User {str(i + 1)}\n"
+                    self.state = State.STATE1
+                return [s]
+            elif msg.startswith("no") or msg == "n":
+                return ["Thank you. The moderating process is now complete."]
+            
+        if self.state == State.STATE1:
+            msg = message.content.lower().strip()
+            for i in range(len(self.client.submitted.keys())):
+                if str(i + 1) in msg:
+                    self.mod_user = list(self.client.submitted.keys())[i]
+                    s = f"You have selected User {str(i + 1)}.\n\n"
+                    s += "Please select one of the following reports from this user:\n"
+                    for i in range(len(self.client.submitted[self.mod_user])):
+                        s += f"- Report {str(i + 1)}\n"
+                        self.state = State.STATE2
+                    return [s]    
+            
+            s = "Please enter a valid user number or say `cancel` to cancel."
+            return [s]
+        
+        if self.state == State.STATE2:
+            msg = message.content.lower().strip()
+            for i in range(len(self.client.submitted[self.mod_user])):
+                if str(i + 1) in msg:
+                    s = f"You have selected Report {str(i + 1)}.\n\n"
+                    s += f"Here is the relevant information from the report:\n"
+                    for data in self.client.submitted[self.mod_user][i].data:
+                        s += f"{str(data)} = {str(self.client.submitted[self.mod_user][i].data[data])}\n"
+                    s += f"Sextortion Related? = {str(self.client.submitted[self.mod_user][i].sextortion)}\n\n"
+                    s += f"Please use this information for the rest of the report analysis process.\n\n"
+                    s = "Does the report contain sextortion?\n"
+                    s += f"- Yes.\n"
+                    s += f"- No.\n"
+                    self.state = State.STATE3
+                    return [s]
+                
+            return ["Please enter a valid report number or say `cancel` to cancel."]
+        
+        if self.state == State.STATE3:
+            msg = message.content.lower().strip()
+            if msg.startswith("yes") or msg == "y":
+                s = "Is the perpetrator a repeat offender?\n"
+                s += f"- Yes.\n"
+                s += f"- No.\n"
+                self.state = State.STATE4
+            elif msg.startswith("no") or msg == "n":
+                s = "The sextortion component of the moderation is complete. Thank you."
+            return [s]
+        
+        if self.state == State.STATE4:
+            msg = message.content.lower().strip()
+            if msg.startswith("yes") or msg == "y":
+                s = "The perpetrator account will be banned and the related messages hidden. "
+                s += "Please send this report to the moderation panel.\n\n"
+                s += "Does the report contain a severe threat or imminent danger?\n"
+                s += "- Yes.\n"
+                s += "- No.\n"
+                self.state = State.STATE5
+            elif msg.startswith("no") or msg == "n":
+                s = "Does the report contain a severe threat or imminent danger?\n"
+                s += "- Yes.\n"
+                s += "- No.\n"
+                self.state = State.STATE5
+            return [s]
+                
 

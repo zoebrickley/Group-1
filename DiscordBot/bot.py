@@ -119,6 +119,8 @@ class ModBot(discord.Client):
 
             if author_id not in self.mod_desk:
                 self.mod_desk[author_id] = ModInterface(self)
+            
+            ModInterface.reports = self.submitted
 
             # Let the report class handle this message; forward all the messages it returns to uss
             responses = await self.mod_desk[author_id].handle_message(message)
