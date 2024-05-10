@@ -88,7 +88,6 @@ class ModBot(discord.Client):
         if message.content.startswith(Report.MOD_KEYWORD) and not self.user_flow:
             self.mod_flow = True 
 
-        # Only respond to messages if they're part of a reporting flow
         if not self.mod_flow:
 
             if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):
@@ -100,7 +99,7 @@ class ModBot(discord.Client):
                 self.user_flow = True
 
         if self.user_flow:
-        
+    
             # Let the report class handle this message; forward all the messages it returns to uss
             responses = await self.reports[author_id].handle_message(message)
             for r in responses:
