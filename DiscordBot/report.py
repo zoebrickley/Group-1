@@ -16,6 +16,7 @@ class State(Enum):
     STATE9 = auto()
     STATE10 = auto()
     REPORT_COMPLETE = auto()
+    COMPLETE = auto()
 
 class Report:
     START_KEYWORD = "report"
@@ -260,6 +261,7 @@ class ModInterface():
         self.data = {}
         self.sextortion = False
         self.reports = {} 
+        self.report_idx = None
 
     async def handle_message(self, message):
         '''
@@ -269,7 +271,7 @@ class ModInterface():
         '''
 
         if message.content == Report.CANCEL_KEYWORD:
-            self.state = State.REPORT_COMPLETE
+            self.state = State.COMPLETE
             return ["Report cancelled."]
         
         if self.state == State.REPORT_START:
@@ -279,8 +281,8 @@ class ModInterface():
             self.state = State.AWAITING_MESSAGE
             return [reply]
 
-        if self.state == State.AWAITING_MESSAGE:
-            msg = message.content.lower().strip()
+        msg = message.content.lower().strip()   
+        if self.state == State.AWAITING_MESSAGE or (self.state == State.STATE9 and (msg.startswith("yes") or msg == "y")):
             if msg.startswith("yes") or msg == "y":
                 s = "Please select a user who submitted a report from the following:\n"
                 for i in range(len(self.client.submitted.keys())):
@@ -288,14 +290,15 @@ class ModInterface():
                     self.state = State.STATE1
                 return [s]
             elif msg.startswith("no") or msg == "n":
+                self.state = State.COMPLETE
                 return ["Thank you. The moderating process is now complete."]
             else:
                 return ["Sorry, I can't seem to parse your input. Please try again or say `cancel` to cancel."]
             
         if self.state == State.STATE1:
-            msg = message.content.lower().strip()
             for i in range(len(self.client.submitted.keys())):
                 if str(i + 1) in msg:
+                    self.report_idx = i
                     self.mod_user = list(self.client.submitted.keys())[i]
                     s = f"You have selected User {str(i + 1)}.\n\n"
                     s += "Please select one of the following reports from this user:\n"
@@ -308,7 +311,6 @@ class ModInterface():
             return [s]
         
         if self.state == State.STATE2:
-            msg = message.content.lower().strip()
             for i in range(len(self.client.submitted[self.mod_user])):
                 if str(i + 1) in msg:
                     s = f"You have selected Report {str(i + 1)}.\n\n"
@@ -326,20 +328,21 @@ class ModInterface():
             return ["Please enter a valid report number or say `cancel` to cancel."]
         
         if self.state == State.STATE3:
-            msg = message.content.lower().strip()
             if msg.startswith("yes") or msg == "y":
                 s = "Is the perpetrator a repeat offender?\n"
                 s += "- Yes.\n"
                 s += "- No.\n"
                 self.state = State.STATE4
             elif msg.startswith("no") or msg == "n":
-                s = "The sextortion component of the moderation is complete. Thank you."
+                s = "The sextortion component of the moderation is complete. Thank you.\n"
+                s += "Would you like to process another report?"
+                self.pop_current_report()
+                self.state = State.STATE9
             else:
                 return ["Sorry, I can't seem to parse your input. Please try again or say `cancel` to cancel."]
             return [s]
         
         if self.state == State.STATE4:
-            msg = message.content.lower().strip()
             if msg.startswith("yes") or msg == "y":
                 s = "The perpetrator account will be temporarily banned and the related messages hidden. "
                 s += "Please send this report to the moderation panel.\n\n"
@@ -357,7 +360,6 @@ class ModInterface():
             return [s]
         
         if self.state == State.STATE5:
-            msg = message.content.lower().strip()
             if msg.startswith("yes") or msg == "y":
                 s = "The perpetrator account will be temporarily banned and there will be a pending review for alerting authorities. "
                 s += "Please send this report to the moderation panel.\n\n"
@@ -375,11 +377,13 @@ class ModInterface():
             return [s]
         
         if self.state == State.STATE6:
-            msg = message.content.lower().strip()
             if msg.startswith("yes") or msg == "y":
                 s = "This report will be escalated to create a report to send to authorities. "
                 s += "Please send this report to the moderation panel.\n\n"
-                s += "The moderation process is now complete. Thank you for your time."
+                s += "The moderation process is now complete. Thank you for your time.\n"
+                s += "Would you like to process another report?"
+                self.pop_current_report()
+                self.state = State.STATE9
             elif msg.startswith("no") or msg == "n":
                 s = "Did the report contain any high risk factors (repeat offender, severe threat" + \
                 "and/or imminent danger, high risk and/or illegal content)?\n"
@@ -391,9 +395,11 @@ class ModInterface():
             return [s]
         
         if self.state == State.STATE7:
-            msg = message.content.lower().strip()
             if msg.startswith("yes") or msg == "y":
                 s += "The moderation process is now complete. Thank you for your time.\n"
+                s += "Would you like to process another report?"
+                self.pop_current_report()
+                self.state = State.STATE9
             elif msg.startswith("no") or msg == "n":
                 s = "Please enter the severity level of the report:\n"
                 s += "- Medium: Explicit content is present or there is clear harassment.\n"
@@ -406,29 +412,46 @@ class ModInterface():
             return [s]
         
         if self.state == State.STATE8:
-            msg = message.content.lower().strip()
             if msg.startswith("med") or msg == "m":
+                self.pop_current_report()
                 s = "The messaging capability of the perpetrator account will be temporarily disabled and sensitive messages will be hidden. "
                 s += "The original reporter will be notified of the decision. They will be given the option to appeal to have a panel review, and crisis management resources will be shared.\n\n"
                 s += "Would you like to process another report?"
                 self.state = State.STATE9
             elif msg.startswith("low") or msg == "l":
+                self.pop_current_report()
                 s = "The perpetrator account will be flagged for further observation without immediate punitive action. "
                 s += "The original reporter will be notified of the decision. They will be given the option to appeal to have a panel review, and crisis management resources will be shared.\n\n"
                 s += "Would you like to process another report?"
-                self.state = State.AWAITING_MESSAGE
+                self.state = State.STATE9
             elif msg.startswith("not"):
+                self.pop_current_report()
                 s = "The report will be moved to a different corresponding flow for the appropriate abuse type. "
                 s += "The original reporter will be notified of the decision. They will be given the option to appeal to have a panel review, and crisis management resources will be shared.\n\n"
                 s += "Would you like to process another report?"
-                self.state = State.AWAITING_MESSAGE
+                self.state = State.STATE9
             elif msg == "none":
+                self.pop_current_report()
                 s = "The reporter will be flagged for further observation without immediate punitive action. "
                 s += "The original reporter will be notified of the decision. They will be given the option to appeal to have a panel review, and crisis management resources will be shared.\n\n"
                 s += "Would you like to process another report?"
-                self.state = State.AWAITING_MESSAGE
+                self.state = State.STATE9
             else:
                 return ["Sorry, I can't seem to parse your input. Please try again or say `cancel` to cancel."]
             return [s]
+
+        if self.state == State.STATE9:
+            if msg.startswith("no") or msg == "n":
+                s = "Thank you!"
+                self.state = State.COMPLETE
+            else:
+                return ["Sorry, I can't seem to parse your input. Please try again or say `cancel` to cancel."]
+            return [s]
+
+    def is_complete(self):
+        return self.state == State.COMPLETE
+
+    def pop_current_report(self):
+        self.client.submitted[self.mod_user].pop(self.report_idx)
                 
 

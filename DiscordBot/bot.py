@@ -125,7 +125,10 @@ class ModBot(discord.Client):
             responses = await self.mod_desk[author_id].handle_message(message)
             for r in responses:
                 await message.channel.send(r)
-            return
+
+            if self.mod_desk[author_id].is_complete():
+                self.mod_flow = False
+                self.mod_desk.pop(author_id)
 
 
     async def handle_channel_message(self, message):
