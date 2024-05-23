@@ -173,14 +173,14 @@ class ModBot(discord.Client):
         '''
         return 0
     
-    
-    def code_format(self, text):
+
+    def code_format(self, rating):
         ''''
         TODO: Once you know how you want to show that a message has been 
         evaluated, insert your code here for formatting the string to be 
         shown in the mod channel. 
         '''
-        return "Evaluated: '" + text+ "'"
+        return "Evaluated: '" + rating + "'"
 
 
 client = ModBot()
