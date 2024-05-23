@@ -8,6 +8,7 @@ import re
 import requests
 from report import Report, ModInterface
 import pdb
+from utils import * 
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -17,7 +18,7 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 # There should be a file called 'tokens.json' inside the same folder as this file
-token_path = 'tokens.json'
+token_path = '/Users/Pura/Documents/CS 152/Group-1/DiscordBot/tokens.json'
 if not os.path.isfile(token_path):
     raise Exception(f"{token_path} not found!")
 with open(token_path) as f:
@@ -140,17 +141,38 @@ class ModBot(discord.Client):
         # Forward the message to the mod channel
         mod_channel = self.mod_channels[message.guild.id]
         await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
-        scores = self.eval_text(message.content)
-        await mod_channel.send(self.code_format(scores))
+
+        text_rating = self.eval_text(message.content)
+        images_present = [file.content_type.startswith("image") for file in message.attachments]
+        if any([images_present]):
+            image_indices = [index for index, value in enumerate(images_present) if value]
+            image_ratings = []
+            for idx in image_indices:
+                image = get_PIL_from_url(message.attachements[idx].url)
+                image_ratings.append(self.eval_img(image))
+            image_rating = max(image_ratings) 
+        else: 
+            image_rating = 0
+        rating = max(text_rating, image_rating)
+
+        await mod_channel.send(self.code_format(rating))
 
     
     def eval_text(self, message):
         ''''
-        TODO: Once you know how you want to evaluate messages in your channel, 
-        insert your code here! This will primarily be used in Milestone 3. 
+        TODO: Send code to GPT-4 via API call, receive rating 0-5 and return as
+        integer. 
         '''
         return message
 
+
+    def eval_img(self, image):
+        ''''
+        TODO: Send PIL image to GPT-4 via API call, receive rating 0-5 and return
+        as integer. 
+        '''
+        return 0
+    
     
     def code_format(self, text):
         ''''
