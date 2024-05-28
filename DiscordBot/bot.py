@@ -9,6 +9,16 @@ import requests
 from report import Report, ModInterface
 import pdb
 from utils import * 
+from openai import OpenAI
+
+DEFAULT_MSGS = [
+    {"role": "system", "content": "You are a content moderation system. Classify each input message based on its level of sextortion content from 0 to 5."},
+    {"role": "system", "content": "Sextortion is a criminal act in which one person coerces another into sending sexually explicit photos. The perpetrator then extorts the victim, either for money in financially motivated sextortion or for additional photos, by threatening to release the photos publicly. The perpetrator of sextortion usually manipulates the victim into sending illicit photos by pretending to also be a teenager. We chose to focus on sextortion because it has profound psychological impacts on victims, making it critical to address through dedicated moderation efforts and user education."},
+    {"role": "system", "content": "The classification scale ranges from 0 to 5, where: \n0: No sign of sextortion (completely benign messages).\n1-2: Minor threat of sextortion (warning message—Are you sure you’d like to send this message? before the user can send it).\n3-4: Sextortion present but not threatening (block from sending this message, send it to review).\n5: Clear harm and threat (temporarily suspend the user)."},
+    {"role": "system", "content": "Examples:\n\nLevel 0: No sign of sextortion (Do nothing)\n- I just saved $100 on my last purchase with a discount code!\n- Hey, how are you doing today?\n- Can you help me with this project?\n- What's your favorite movie?\n- Let's catch up over coffee sometime!\n- My family and I went hiking this weekend. It was so much fun!\n- I visited my grandparents last weekend. It was great catching up with them.\n- We have a big family dinner every Sunday. It's my favorite part of the week.\n\nLevel 1: Mildly inappropriate or suggestive but no explicit threat (Warning message)\n- You have such a radiant smile. You could monetize that.\n- Your family must tell you how gorgeous you are. You should make money from it.\n- That dress looks amazing on you. You could be paid for that look.\n- You’re so photogenic. Do you share these pictures with your family?\n- You look really hot in that picture.\n- I bet you get a lot of attention from people.\n- You should send me more pics like that.\n- Why don't you show a bit more next time?\n\nLevel 2: Inappropriate, implying mild consequences but not explicit (Warning message)\n- Send me more pics, or I might show these to your family.\n- People would pay to see these photos. Send more.\n- If you don’t send a video, you might have to pay me.\n- Don’t make me regret trusting you. Your family wouldn’t like that.\n- Prove you care, or your family might hear about this.\n- If you don’t send more, your family might find out.\n- Your family wouldn’t want these pics to get out. Send more.\n- I need more pics to stay interested. Your family might want to know.\n- If you don’t send more, this might get costly.\n- You should really send me a video, or your family might find out.\n\nLevel 3: Explicitly suggestive, implying a demand with consequences (Block and review)\n- Send me what I want, or I’ll tell your family everything.\n- You better send me more, or your family will find out.\n- If you don’t send a video, I’ll tell your family about these photos.\n- Don’t make me ruin your reputation with your family.\n- Send more pics, or your family will see these.\n- You don’t want your family to know, do you? Send more.\n- If you don’t comply, your family will hear about this.\n- You better do what I say, or your family will know.\n- Send more, or your family will regret knowing you.\n- Don’t force me to tell your family. Send more pics.\n- Send me what I want, or else you'll regret it.\n- You better send me more or there will be serious consequences.\n- If you don't send a video, I'll make sure others see these.\n- Don't make me ruin your reputation online.\n\nLevel 4: Direct demand with implied consequences (Block and review)\n- Send me those pictures now, or I’ll ruin your family relationships.\n- You don’t want your family to see these, do you? Send more now.\n- If you don’t send more, I’ll tell your family everything.\n- Don’t think I won’t share these with your family. Send more.\n- Send what I want, or I’ll post these to your family.\n- You better do as I say, or your family will regret it.\n- If you don’t send a video, your family will see these.\n- I have your family’s contact info. Don’t test me.\n- Send more, or your family will be informed.\n- You don’t want to see what I’ll do. Send more now.\n- Send me those pictures now, or I'll ruin your life.\n- You don't want your family to see these, do you?\n- If you don't send more, I'll make sure everyone knows your secrets.\n- Don't think I won't share these with your friends.\n\nLevel 5: Clear harm and threat, explicit demand with severe consequences (Temporarily suspend user)\n- Send those explicit pics now, or I'll post these everywhere.\n- If you don't send a video, I'll make sure everyone knows your darkest secrets.\n- I have your address, don't test me. Send more now.\n- If you don't comply, I'll ruin your life and make sure everyone sees these.\n- Send those explicit pics now, or I’ll post these to your family.\n- If you don’t send a video, I’ll ruin your family relationships.\n- I have your family’s contact info. Send more now, or else.\n- If you don’t comply, I’ll tell your family everything.\n- Send what I want, or I’ll make sure you regret it financially.\n- You better do as I say, or your family will regret it.\n- If you don’t send more, I’ll destroy your family relationships.\n- Send more, or I’ll make sure your family sees these.\n- You don’t want to see what I’ll do. Send more now.\n- I’ll ruin your family’s reputation if you don’t comply."},
+    {"role": "system", "content": "Instructions: Given the message, classify it by returning the appropriate number (0-5) that best matches the level of sextortion content. Your response should only contain one number, and nothing else."},
+]
+
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -18,7 +28,7 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 # There should be a file called 'tokens.json' inside the same folder as this file
-token_path = '/Users/Pura/Documents/CS 152/Group-1/DiscordBot/tokens.json'
+token_path = 'tokens.json'
 if not os.path.isfile(token_path):
     raise Exception(f"{token_path} not found!")
 with open(token_path) as f:
@@ -39,6 +49,7 @@ class ModBot(discord.Client):
         self.submitted = {}
         self.user_flow = False
         self.mod_flow = False
+        self.gpt = OpenAI(organization = "org-YVZe9QFuR0Ke0J0rqr7l2R2L", api_key='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')
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -160,18 +171,33 @@ class ModBot(discord.Client):
     
     def eval_text(self, message):
         ''''
-        TODO: Send code to GPT-4 via API call, receive rating 0-5 and return as
+        Send code to GPT-4 via API call, receive rating 0-5 and return as
         integer. 
         '''
-        return message
+        response = self.gpt.chat.completions.create(
+            model="gpt-4",
+            messages=DEFAULT_MSGS.append(
+                {"role": "user", "content": message}
+            ),
+            max_tokens=300,
+        )
+        return int(response.choices[0].message.strip())
 
 
-    def eval_img(self, image):
+    def eval_img(self, image_url):
         ''''
-        TODO: Send PIL image to GPT-4 via API call, receive rating 0-5 and return
+        Send image URL to GPT-4 via API call, receive rating 0-5 and return
         as integer. 
         '''
-        return 0
+
+        response = self.gpt.chat.completions.create(
+            model="gpt-4",
+            messages=DEFAULT_MSGS.append(
+                {"role": "user", "content": [{"type": "image_url","image_url": {"url": image_url,},},],}
+            ),
+            max_tokens=300,
+        )
+        return int(response.choices[0].message.strip())
     
 
     def code_format(self, rating):
