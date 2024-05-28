@@ -159,8 +159,7 @@ class ModBot(discord.Client):
             image_indices = [index for index, value in enumerate(images_present) if value]
             image_ratings = []
             for idx in image_indices:
-                image = get_PIL_from_url(message.attachements[idx].url)
-                image_ratings.append(self.eval_img(image))
+                image_ratings.append(self.eval_img(message.attachements[idx].url))
             image_rating = max(image_ratings) 
         else: 
             image_rating = 0
