@@ -49,7 +49,7 @@ class ModBot(discord.Client):
         self.submitted = {}
         self.user_flow = False
         self.mod_flow = False
-        self.gpt = OpenAI(organization = "org-YVZe9QFuR0Ke0J0rqr7l2R2L", api_key='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')
+        self.gpt = OpenAI(organization = "org-nkfkaCRIqF4ZHCMvuA0cAhOY", api_key='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')
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
