@@ -212,7 +212,8 @@ class ModBot(discord.Client):
             s = "Your message has been flagged as containing sextortion. This message will be" + \
             "blocked and your account will be reviewed."
         if (rating == 5):
-            s = "Your account has been temporarily suspended and your account will be reviewed.."
+            s = "Your account has been temporarily suspended and your account will be reviewed.\n" + \
+            "If you want to appeal this decision, please submit a request."
         return s
 
 
