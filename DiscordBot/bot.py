@@ -200,11 +200,6 @@ class ModBot(discord.Client):
     
 
     def code_format(self, rating):
-        ''''
-        TODO: Once you know how you want to show that a message has been 
-        evaluated, insert your code here for formatting the string to be 
-        shown in the mod channel. 
-        '''
         if (rating == 1) or (rating == 2):
             s = "Warning: Your message has been flagged as potentially containing sextortion." + \
                 "Please review your message again."
