@@ -205,7 +205,15 @@ class ModBot(discord.Client):
         evaluated, insert your code here for formatting the string to be 
         shown in the mod channel. 
         '''
-        return "Evaluated: '" + rating + "'"
+        if (rating == 1) or (rating == 2):
+            s = "Warning: Your message has been flagged as potentially containing sextortion." + \
+                "Please review your message again."
+        if (rating == 3) or (rating == 4):
+            s = "Your message has been flagged as containing sextortion. This message will be" + \
+            "blocked and your account will be reviewed."
+        if (rating == 5):
+            s = "Your account has been temporarily suspended and your account will be reviewed.."
+        return s
 
 
 client = ModBot()
