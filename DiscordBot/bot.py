@@ -49,7 +49,7 @@ class ModBot(discord.Client):
         self.submitted = {}
         self.user_flow = False
         self.mod_flow = False
-        self.gpt = OpenAI(organization = "org-nkfkaCRIqF4ZHCMvuA0cAhOY", api_key='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')
+        self.gpt = OpenAI(api_key='sk-proj-ixHipEvJ7HKlbrWAUUs2T3BlbkFJeSk3QubYGN8yXJUxtxUC')
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -175,12 +175,10 @@ class ModBot(discord.Client):
         '''
         response = self.gpt.chat.completions.create(
             model="gpt-4",
-            messages=DEFAULT_MSGS.append(
-                {"role": "user", "content": message}
-            ),
+            messages = DEFAULT_MSGS + [{"role": "user", "content": message}],
             max_tokens=300,
         )
-        return int(response.choices[0].message.strip())
+        return int(response.choices[0].message.content)
 
 
     def eval_img(self, image_url):
@@ -188,28 +186,30 @@ class ModBot(discord.Client):
         Send image URL to GPT-4 via API call, receive rating 0-5 and return
         as integer. 
         '''
-
+        messages = DEFAULT_MSGS + [{"role": "user", "content": f"[Image URL: {image_url}]"}]
         response = self.gpt.chat.completions.create(
             model="gpt-4",
-            messages=DEFAULT_MSGS.append(
-                {"role": "user", "content": [{"type": "image_url","image_url": {"url": image_url,},},],}
-            ),
+            messages=messages,
             max_tokens=300,
         )
-        return int(response.choices[0].message.strip())
+        return int(response.choices[0].message.content)
     
 
     def code_format(self, rating):
-        if (rating == 1) or (rating == 2):
-            s = "Warning: Your message has been flagged as potentially containing sextortion." + \
-                "Please review your message again."
-        if (rating == 3) or (rating == 4):
-            s = "Your message has been flagged as containing sextortion. This message will be" + \
-            "blocked and your account will be reviewed."
-        if (rating == 5):
-            s = "Your account has been temporarily suspended and your account will be reviewed.\n" + \
-            "If you want to appeal this decision, please submit a request."
-        return s
+        if rating == 0:
+            return "Your message has been evaluated and found to be safe."
+        elif rating == 1 or rating == 2:
+            return ("Warning: Your message has been flagged as potentially containing sextortion. "
+                    "Please review your message again.")
+        elif rating == 3 or rating == 4:
+            return ("Your message has been flagged as containing sextortion. This message will be "
+                    "blocked and your account will be reviewed.")
+        elif rating == 5:
+            return ("Your account has been temporarily suspended and your account will be reviewed.\n"
+                    "If you want to appeal this decision, please submit a request.")
+        else:
+            return "Invalid rating. Please contact support."
+
 
 
 client = ModBot()
