@@ -1,3 +1,5 @@
 *.log
 DiscordBot/tokens.json
+DiscordBot/secret.py
 TABot/tokens.json
+

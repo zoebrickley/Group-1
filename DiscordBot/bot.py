@@ -10,6 +10,7 @@ from report import Report, ModInterface
 import pdb
 from utils import * 
 from openai import OpenAI
+from secret import OPENAI_KEY
 
 DEFAULT_MSGS = [
     {"role": "system", "content": "You are a content moderation system. Classify each input message based on its level of sextortion content from 0 to 5."},
@@ -49,7 +50,7 @@ class ModBot(discord.Client):
         self.submitted = {}
         self.user_flow = False
         self.mod_flow = False
-        self.gpt = OpenAI(api_key='')
+        self.gpt = OpenAI(api_key=OPENAI_KEY)
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -159,7 +160,7 @@ class ModBot(discord.Client):
             image_indices = [index for index, value in enumerate(images_present) if value]
             image_ratings = []
             for idx in image_indices:
-                image_ratings.append(self.eval_img(message.attachements[idx].url))
+                image_ratings.append(self.eval_img(message.attachments[idx].url))
             image_rating = max(image_ratings) 
         else: 
             image_rating = 0
@@ -173,6 +174,8 @@ class ModBot(discord.Client):
         Send code to GPT-4 via API call, receive rating 0-5 and return as
         integer. 
         '''
+        if not message:
+            return 0
         response = self.gpt.chat.completions.create(
             model="gpt-4",
             messages = DEFAULT_MSGS + [{"role": "user", "content": message}],
