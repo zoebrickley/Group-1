@@ -20,6 +20,15 @@ DEFAULT_MSGS = [
     {"role": "system", "content": "Instructions: Given the message, classify it by returning the appropriate number (0-5) that best matches the level of sextortion content. Your response should only contain one number, and nothing else."},
 ]
 
+def _convert_txt_msg_to_img_msg(msg_dict):
+    assert "role" in msg_dict and "content" in msg_dict
+    img_msg_dict = {}
+    img_msg_dict["type"] = "text"
+    img_msg_dict["text"] = msg_dict["content"]
+    return img_msg_dict
+
+IMG_DEFAULT_MSGS = [_convert_txt_msg_to_img_msg(msg_dict) for msg_dict in DEFAULT_MSGS]
+
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -165,6 +174,7 @@ class ModBot(discord.Client):
         else: 
             image_rating = 0
         rating = max(text_rating, image_rating)
+        print(rating)
 
         await mod_channel.send(self.code_format(rating))
 
@@ -189,10 +199,13 @@ class ModBot(discord.Client):
         Send image URL to GPT-4 via API call, receive rating 0-5 and return
         as integer. 
         '''
-        messages = DEFAULT_MSGS + [{"role": "user", "content": f"[Image URL: {image_url}]"}]
+        messages = IMG_DEFAULT_MSGS + [{"type": "image_url", "image_url": {"url": image_url}}]
         response = self.gpt.chat.completions.create(
-            model="gpt-4",
-            messages=messages,
+            model="gpt-4o",
+            messages=[{
+                "role": "user",
+                "content": messages
+            }],
             max_tokens=300,
         )
         return int(response.choices[0].message.content)
