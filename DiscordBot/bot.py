@@ -176,8 +176,10 @@ class ModBot(discord.Client):
         rating = max(text_rating, image_rating)
         print(rating)
 
-        await mod_channel.send(self.code_format(rating))
-
+        if rating == 0:
+            await mod_channel.send(self.code_format(rating))
+        else:
+            await message.channel.send(self.code_format(rating))
     
     def eval_text(self, message):
         ''''
